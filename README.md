@@ -1,4 +1,4 @@
-![GreyFox](assets/greyfox.png)
+![GreyFox](assets/logo.png)
 
 GreyFox is an experimental CPU ISA with the intent to be simple to compile and decode to allow for complex and fast HW implementations. 
 
