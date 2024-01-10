@@ -294,7 +294,7 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         06Cx sub A-=32
         06Dx sub A-=64
         06Ex sub A-=128
-        06Ex sub A-=256
+        06Fx sub A-=256
     add_sub_special_constant [A=i0-i15]
         070x add A+=3
         071x add A+=5
