@@ -316,7 +316,7 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
     add_sub_float_constant: [A=f0-f15]
         080x add.f A+=0.25
         081x add.f A+=0.5
-        082x add.f A+=0.25
+        082x add.f A+=1.0
         083x add.f A+=0.1
         084x add.f A+=2.0
         085x add.f A+=4.0
@@ -324,7 +324,7 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         087x add.f A+=100.
         088x sub.f A-=0.25
         089x sub.f A-=0.5
-        08Ax sub.f A-=0.25
+        08Ax sub.f A-=1.0
         08Bx sub.f A-=0.1
         08Cx sub.f A-=2.0
         08Dx sub.f A-=4.0
