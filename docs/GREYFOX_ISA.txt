@@ -201,11 +201,11 @@ Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]]
         X2XX cmpXXX.less_zero.i64     (int64_t) A<0
         X3XX UNUSED
         X4XX cmpXXX.lequal_zero.i64   (int64_t) A<=0
-        X5XX cmpXXX.lequal_zero.u64   (uint64_t) A<=0
+        X5XX UNUSED
         X6XX cmpXXX.greater_zero.i64      (int64_t) A==0
-        X7XX cmpXXX.greater_zero.u64      (uint64_t) A==0
+        X7XX UNUSED
         X8XX cmpXXX.gequal_zero.i64      (int64_t) A>=0
-        X9XX cmpXXX.gequal_zero.u64      (uint64_t) A>=0
+        X9XX UNUSED
         XAXX cmpXXX.eq_zero.f         (float) A==0
         XBXX cmpXXX.neq_zero.f        (float) A!=0
         XCXX cmpXXX.less_zero.f       (float) A<0
