@@ -255,16 +255,16 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         03Ex unused
         03Fx unused
     special_reg_op [A=i0-i15]
-        040x mov A = PC
-        041x mov A = SP
-        042x mov A = LR
-        043x mov A = COND ? 1:0
-        044x mov PC = A 
-        045x mov SP = A 
-        046x mov LR = A 
-        047x mov COND = A!=0
-        048x push *(uint8_t*) (mem+SP) = COND?1:0; SP+=1
-        049x pop  SP-=1; COND=(*(uint8_t*) (mem+SP))!=0;
+        040x getpc : mov A = PC
+        041x getsp : mov A = SP
+        042x getlr : mov A = LR
+        043x getcond : mov A = COND ? 1:0
+        044x setpc : mov PC = A 
+        045x setsp : mov SP = A 
+        046x setlr : mov LR = A 
+        047x setcond : mov COND = A!=0
+        048x pushcond : push *(uint8_t*) (mem+SP) = COND?1:0; SP+=1
+        049x popcond : pop  SP-=1; COND=(*(uint8_t*) (mem+SP))!=0;
         04Ax-04Fx unused
     call_ops:
         050x call_indirect            mem[SP]=LR;LR=PC+2; SP+=8; PC = A;
