@@ -220,10 +220,10 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         022x pop.u32 SP-=4; A=*(uint32_t*)(mem+SP);
         023x pop.u64 SP-=8; A=*(uint64_t*)(mem+SP);
 
-        020x pop.s8  SP-=1; A=*(int8_t*) (mem+SP); 
-        021x pop.s16 SP-=2; A=*(int16_t*)(mem+SP);
-        022x pop.s32 SP-=4; A=*(int32_t*)(mem+SP);
-        023x pop.s64 SP-=8; A=*(int64_t*)(mem+SP);
+        024x pop.i8  SP-=1; A=*(int8_t*) (mem+SP); 
+        025x pop.i16 SP-=2; A=*(int16_t*)(mem+SP);
+        026x pop.i32 SP-=4; A=*(int32_t*)(mem+SP);
+        027x pop.i64 SP-=8; A=*(int64_t*)(mem+SP);
 
         028x unused
         029x pop.f16  SP-=2; A=*(half*)(mem+SP);
@@ -240,10 +240,10 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         032x ldim.u32 A=*(uint32_t*)(mem+PC); PC+= 4
         033x ldim.u64 A=*(uint64_t*)(mem+PC); PC+= 8
 
-        030x ldim.u8  A=*(int8_t*) (mem+PC); PC+= 1
-        031x ldim.u16 A=*(int16_t*)(mem+PC); PC+= 2
-        032x ldim.u32 A=*(int32_t*)(mem+PC); PC+= 4
-        033x ldim.u64 A=*(int64_t*)(mem+PC); PC+= 8
+        034x ldim.i8  A=*(int8_t*) (mem+PC); PC+= 1
+        035x ldim.i16 A=*(int16_t*)(mem+PC); PC+= 2
+        036x ldim.i32 A=*(int32_t*)(mem+PC); PC+= 4
+        037x ldim.i64 A=*(int64_t*)(mem+PC); PC+= 8
 
         038x unused
         039x ldim.f16  A=*(half*)(mem+PC);   PC+= 2
