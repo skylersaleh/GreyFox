@@ -117,18 +117,18 @@ Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]]
         53XX unused
 
     coprocessor_ops: [Used for extended instruction sets: ie. Vector, Matrix, RT, Texture, AI, String Ops, DMA, encryption]
-        54XX cpc.2B  coprocessor( *(uint16_t*)(mem+PC),A,B);  PC+=2;   [A, B = i0-i15]
-        55XX cpc.4B  coprocessor( *(uint32_t*)(mem+PC),A,B);  PC+=4;   [A, B = i0-i15]
-        56XX cpc.8B  coprocessor( *(uint64_t*)(mem+PC),A,B);  PC+=8;   [A, B = i0-i15]
-        57XX cpc.2B  coprocessor( *(uint16_t*)(mem+PC),A,B);  PC+=2;   [A, B = f0-f15]
-        58XX cpc.4B  coprocessor( *(uint32_t*)(mem+PC),A,B);  PC+=4;   [A, B = f0-f15]
-        59XX cpc.8B  coprocessor( *(uint64_t*)(mem+PC),A,B);  PC+=8;   [A, B = f0-f15]
-        5AXX cpc.2B  A= coprocessor( *(uint16_t*)(mem+PC),A,B);  PC+=2;   [A, B = i0-i15]
-        5BXX cpc.4B  A= coprocessor( *(uint32_t*)(mem+PC),A,B);  PC+=4;   [A, B = i0-i15]
-        5CXX cpc.8B  A= coprocessor( *(uint64_t*)(mem+PC),A,B);  PC+=8;   [A, B = i0-i15]
-        5DXX cpc.2B  A= coprocessor( *(uint16_t*)(mem+PC),A,B);  PC+=2;   [A, B = f0-f15]
-        5EXX cpc.4B  A= coprocessor( *(uint32_t*)(mem+PC),A,B);  PC+=4;   [A, B = f0-f15]
-        5FXX cpc.8B  A= coprocessor( *(uint64_t*)(mem+PC),A,B);  PC+=8;   [A, B = f0-f15]
+        54XX cpcwr.2i  coprocessor( *(uint16_t*)(mem+PC),A,B);  PC+=2;   [A, B = i0-i15]
+        55XX cpcwr.4i  coprocessor( *(uint32_t*)(mem+PC),A,B);  PC+=4;   [A, B = i0-i15]
+        56XX cpcwr.8  coprocessor( *(uint64_t*)(mem+PC),A,B);  PC+=8;   [A, B = i0-i15]
+        57XX cpcwr.2f  coprocessor( *(uint16_t*)(mem+PC),A,B);  PC+=2;   [A, B = f0-f15]
+        58XX cpcwr.4f  coprocessor( *(uint32_t*)(mem+PC),A,B);  PC+=4;   [A, B = f0-f15]
+        59XX cpcwr.8f  coprocessor( *(uint64_t*)(mem+PC),A,B);  PC+=8;   [A, B = f0-f15]
+        5AXX cpcrd.2i  A= coprocessor( *(uint16_t*)(mem+PC),A,B);  PC+=2;   [A, B = i0-i15]
+        5BXX cpcrd.4i  A= coprocessor( *(uint32_t*)(mem+PC),A,B);  PC+=4;   [A, B = i0-i15]
+        5CXX cpcrd.8i  A= coprocessor( *(uint64_t*)(mem+PC),A,B);  PC+=8;   [A, B = i0-i15]
+        5DXX cpcrd.2f  A= coprocessor( *(uint16_t*)(mem+PC),A,B);  PC+=2;   [A, B = f0-f15]
+        5EXX cpcrd.4f  A= coprocessor( *(uint32_t*)(mem+PC),A,B);  PC+=4;   [A, B = f0-f15]
+        5FXX cpcrd.8f  A= coprocessor( *(uint64_t*)(mem+PC),A,B);  PC+=8;   [A, B = f0-f15]
 
     atomic_and_ld_ops:
         60XX ld.u8  A = *(uint8_t*)(mem+B)
@@ -175,23 +175,44 @@ Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]]
         84XX store.f64 *(double*)(mem+A) = B
   
 
-    Compare Ops [0x9X: A = A cmp B, 0xAX: COND = A cmp B, 0xBX: COND |= A cmp B, 0xCX: COND &= A cmp B]
-        X0XX eq           (int64_t) A==B
-        X1XX neq          (int64_t) A!=B
-        X2XX less.i64     (int64_t) A<B
-        X3XX less.u64     (uint64_t) A<B
-        X4XX lequal.i64   (int64_t) A<=B
-        X5XX lequal.u64   (uint64_t) A<=B
-        X6XX eq_zero      (int64_t) B==0
-        X7XX neq_zero     (int64_t) B!=0
-        X8XX eq.f         (float) A==B
-        X9XX neq.f        (float) A!=B
-        XAXX less.f       (float) A<B
-        XBXX greater.f    (float) A>B
-        XCXX lequal.f     (float) A<=B
-        XDXX gequal.f     (float) A>=B
-        XEXX eq_zero.f    (float) B==0
-        XFXX neq_zero.f   (float) B!=0
+    Compare Ops [0x9X: A = A cmp B ("cmpread"), 0xAX: COND = A cmp B ("cmp"), 0xBX: COND |= A cmp B ("cmpor"), 0xCX: COND &= A cmp B ("cmpand")]
+        A and B ***must*** be different
+        X0XX cmpXXX.eq           (int64_t) A==B
+        X1XX cmpXXX.neq          (int64_t) A!=B
+        X2XX cmpXXX.less.i64     (int64_t) A<B
+        X3XX cmpXXX.less.u64     (uint64_t) A<B
+        X4XX cmpXXX.lequal.i64   (int64_t) A<=B
+        X5XX cmpXXX.lequal.u64   (uint64_t) A<=B
+        X6XX UNUSED
+        X7XX UNUSED
+        X8XX UNUSED
+        X9XX UNUSED
+        XAXX cmpXXX.eq.f         (float) A==B
+        XBXX cmpXXX.neq.f        (float) A!=B
+        XCXX cmpXXX.less.f       (float) A<B
+        XDXX cmpXXX.greater.f    (float) A>B
+        XEXX cmpXXX.lequal.f     (float) A<=B
+        XFXX cmpXXX.gequal.f     (float) A>=B
+
+    Zero compare Ops [0x9X: A = A cmp 0 ("cmpread"), 0xAX: COND = A cmp 0 ("cmp"), 0xBX: COND |= A cmp 0 ("cmpor"), 0xCX: COND &= A cmp 0 ("cmpand")]
+        A and B ***must*** be the same
+        X0XX cmpXXX.eq_zero           (int64_t) A==0
+        X1XX cmpXXX.neq_zero          (int64_t) A!=0
+        X2XX cmpXXX.less_zero.i64     (int64_t) A<0
+        X3XX UNUSED
+        X4XX cmpXXX.lequal_zero.i64   (int64_t) A<=0
+        X5XX UNUSED
+        X6XX cmpXXX.greater_zero.i64      (int64_t) A==0
+        X7XX UNUSED
+        X8XX cmpXXX.gequal_zero.i64      (int64_t) A>=0
+        X9XX UNUSED
+        XAXX cmpXXX.eq_zero.f         (float) A==0
+        XBXX cmpXXX.neq_zero.f        (float) A!=0
+        XCXX cmpXXX.less_zero.f       (float) A<0
+        XDXX cmpXXX.greater_zero.f    (float) A>0
+        XEXX cmpXXX.lequal_zero.f     (float) A<=0
+        XFXX cmpXXX.gequal_zero.f     (float) A>=0
+
 One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]] 
     push_ops: strop(SP,A) SP+=sizeof(ldop):
         010x push.u8  *(uint8_t*) (mem+SP) = A; SP+=1 
@@ -220,10 +241,10 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         022x pop.u32 SP-=4; A=*(uint32_t*)(mem+SP);
         023x pop.u64 SP-=8; A=*(uint64_t*)(mem+SP);
 
-        020x pop.s8  SP-=1; A=*(int8_t*) (mem+SP); 
-        021x pop.s16 SP-=2; A=*(int16_t*)(mem+SP);
-        022x pop.s32 SP-=4; A=*(int32_t*)(mem+SP);
-        023x pop.s64 SP-=8; A=*(int64_t*)(mem+SP);
+        024x pop.i8  SP-=1; A=*(int8_t*) (mem+SP); 
+        025x pop.i16 SP-=2; A=*(int16_t*)(mem+SP);
+        026x pop.i32 SP-=4; A=*(int32_t*)(mem+SP);
+        027x pop.i64 SP-=8; A=*(int64_t*)(mem+SP);
 
         028x unused
         029x pop.f16  SP-=2; A=*(half*)(mem+SP);
@@ -240,10 +261,10 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         032x ldim.u32 A=*(uint32_t*)(mem+PC); PC+= 4
         033x ldim.u64 A=*(uint64_t*)(mem+PC); PC+= 8
 
-        030x ldim.u8  A=*(int8_t*) (mem+PC); PC+= 1
-        031x ldim.u16 A=*(int16_t*)(mem+PC); PC+= 2
-        032x ldim.u32 A=*(int32_t*)(mem+PC); PC+= 4
-        033x ldim.u64 A=*(int64_t*)(mem+PC); PC+= 8
+        034x ldim.i8  A=*(int8_t*) (mem+PC); PC+= 1
+        035x ldim.i16 A=*(int16_t*)(mem+PC); PC+= 2
+        036x ldim.i32 A=*(int32_t*)(mem+PC); PC+= 4
+        037x ldim.i64 A=*(int64_t*)(mem+PC); PC+= 8
 
         038x unused
         039x ldim.f16  A=*(half*)(mem+PC);   PC+= 2
@@ -255,16 +276,16 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         03Ex unused
         03Fx unused
     special_reg_op [A=i0-i15]
-        040x mov A = PC
-        041x mov A = SP
-        042x mov A = LR
-        043x mov A = COND ? 1:0
-        044x mov PC = A 
-        045x mov SP = A 
-        046x mov LR = A 
-        047x mov COND = A!=0
-        048x push *(uint8_t*) (mem+SP) = COND?1:0; SP+=1
-        049x pop  SP-=1; COND=(*(uint8_t*) (mem+SP))!=0;
+        040x getpc : mov A = PC
+        041x getsp : mov A = SP
+        042x getlr : mov A = LR
+        043x getcond : mov A = COND ? 1:0
+        044x setpc : mov PC = A 
+        045x setsp : mov SP = A 
+        046x setlr : mov LR = A 
+        047x setcond : mov COND = A!=0
+        048x pushcond : push *(uint8_t*) (mem+SP) = COND?1:0; SP+=1
+        049x popcond : pop  SP-=1; COND=(*(uint8_t*) (mem+SP))!=0;
         04Ax-04Fx unused
     call_ops:
         050x call_indirect            mem[SP]=LR;LR=PC+2; SP+=8; PC = A;
@@ -279,57 +300,57 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
 
         0580-05FF unused
     add_sub_pow2_constant: [A=i0-i15]
-        060x add A+=2
-        061x add A+=4
-        062x add A+=8
-        063x add A+=16
-        064x add A+=32
-        065x add A+=64
-        066x add A+=128
-        067x add A+=256
-        068x sub A-=2
-        069x sub A-=4
-        06Ax sub A-=8
-        06Bx sub A-=16
-        06Cx sub A-=32
-        06Dx sub A-=64
-        06Ex sub A-=128
-        06Ex sub A-=256
+        060x inc_2 : add A+=2
+        061x inc_4 : add A+=4
+        062x inc_8: add A+=8
+        063x inc_16 : add A+=16
+        064x inc_32 : add A+=32
+        065x inc_64 : add A+=64
+        066x inc_128 : add A+=128
+        067x inc_256 : add A+=256
+        068x dec_2 : sub A-=2
+        069x dec_4 : sub A-=4
+        06Ax dec_8 : sub A-=8
+        06Bx dec_16 : sub A-=16
+        06Cx dec_32 : sub A-=32
+        06Dx dec_64 : sub A-=64
+        06Ex dec_128 : sub A-=128
+        06Fx dec_256 : sub A-=256
     add_sub_special_constant [A=i0-i15]
-        070x add A+=3
-        071x add A+=5
-        072x add A+=10
-        073x add A+=20
-        074x add A+=50
-        075x add A+=100
-        076x add A+=1000
-        077x add A+=10000
-        078x sub A-=3
-        079x sub A-=5
-        07Ax sub A-=10
-        07Bx sub A-=20
-        07Cx sub A-=50
-        07Dx sub A-=100
-        07Ex sub A-=1000
-        07Fx sub A-=10000
+        070x inc_3 : add A+=3
+        071x inc_5 : add A+=5
+        072x inc_10 : add A+=10
+        073x inc_20 : add A+=20
+        074x inc_50 : add A+=50
+        075x inc_100 : add A+=100
+        076x inc_1000 : add A+=1000
+        077x inc_10000 : add A+=10000
+        078x dec_3 : sub A-=3
+        079x dec_5 : sub A-=5
+        07Ax dec_10 : sub A-=10
+        07Bx dec_20 : sub A-=20
+        07Cx dec_50 : sub A-=50
+        07Dx dec_100 : sub A-=100
+        07Ex dec_1000 : sub A-=1000
+        07Fx dec_10000 : sub A-=10000
 
     add_sub_float_constant: [A=f0-f15]
-        080x add.f A+=0.25
-        081x add.f A+=0.5
-        082x add.f A+=0.25
-        083x add.f A+=0.1
-        084x add.f A+=2.0
-        085x add.f A+=4.0
-        086x add.f A+=10.
-        087x add.f A+=100.
-        088x sub.f A-=0.25
-        089x sub.f A-=0.5
-        08Ax sub.f A-=0.25
-        08Bx sub.f A-=0.1
-        08Cx sub.f A-=2.0
-        08Dx sub.f A-=4.0
-        08Ex sub.f A-=10.
-        08Fx sub.f A-=100.
+        080x inc_0.25 : add.f A+=0.25
+        081x inc_0.5 : add.f A+=0.5
+        082x inc_1.0 : add.f A+=1.0
+        083x inc_0.1 : add.f A+=0.1
+        084x inc_2.0 : add.f A+=2.0
+        085x inc_4.0 : add.f A+=4.0
+        086x inc_10.0 : add.f A+=10.
+        087x inc_100.0 : add.f A+=100.
+        088x dec_0.25 : sub.f A-=0.25
+        089x dec_0.5 : sub.f A-=0.5
+        08Ax dec_1.0 : sub.f A-=1.0
+        08Bx dec_0.1 : sub.f A-=0.1
+        08Cx dec_2.0 : sub.f A-=2.0
+        08Dx dec_4.0 : sub.f A-=4.0
+        08Ex dec_10.0 : sub.f A-=10.
+        08Fx dec_100.0 : sub.f A-=100.
 
     fp_special_functions: [A=f0-f15]
         090x cos.f   A = cos(A)
@@ -350,13 +371,13 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
  
 No operand Class:    [ 15:0 op2 [ values 0x0000-0x00FF]] 
     flow_control:
-        0000 return                PC = LR; SP-=8; LR=mem[SP] 
+        0000 illegal
         0001 call_imm.u16          mem[SP]=LR; LR=PC+2; SP+=8; PC =*(uint16_t*)(mem+PC);
-        0002 call_imm.u32          mem[SP]=LR; LR=PC+2; SP+=8; PC =*(uint32_t*)(mem+PC);
-        0003 call_imm.u64          mem[SP]=LR; LR=PC+2; SP+=8; PC =*(uint64_t*)(mem+PC);
+        0002 call_imm.u32          mem[SP]=LR; LR=PC+4; SP+=8; PC =*(uint32_t*)(mem+PC);
+        0003 call_imm.u64          mem[SP]=LR; LR=PC+8; SP+=8; PC =*(uint64_t*)(mem+PC);
         0004 call_rel_imm.u16      mem[SP]=LR; LR=PC+2; SP+=8; PC +=*(int16_t*)(mem+PC);
-        0005 call_rel_imm.u32      mem[SP]=LR; LR=PC+2; SP+=8; PC +=*(int32_t*)(mem+PC);
-        0006 call_rel_imm.u64      mem[SP]=LR; LR=PC+2; SP+=8; PC +=*(int64_t*)(mem+PC);
+        0005 call_rel_imm.u32      mem[SP]=LR; LR=PC+4; SP+=8; PC +=*(int32_t*)(mem+PC);
+        0006 call_rel_imm.u64      mem[SP]=LR; LR=PC+8; SP+=8; PC +=*(int64_t*)(mem+PC);
         0007 svc_return            svc_return;
         0008 hvc_return            hvc_return;
         0009 branch_imm.u16        PC =*(uint16_t*)(mem+PC);
@@ -365,15 +386,15 @@ No operand Class:    [ 15:0 op2 [ values 0x0000-0x00FF]]
         000C branch_rel_imm.u16    PC +=*(int16_t*)(mem+PC);
         000D branch_rel_imm.u32    PC +=*(int32_t*)(mem+PC);
         000E branch_rel_imm.u64    PC +=*(int64_t*)(mem+PC);
-        000F unused
+        000F return                PC = LR; SP-=8; LR=mem[SP] 
     conditional_flow_control:
-        0010 cond_return                if(cond){PC = LR; SP-=8; LR=mem[SP]; }
+        0010 unused
         0011 cond_call_imm.u16          if(cond){mem[SP]=LR; LR=PC+2; SP+=8; PC =*(uint16_t*)(mem+PC);}else PC+=2;
-        0012 cond_call_imm.u32          if(cond){mem[SP]=LR; LR=PC+2; SP+=8; PC =*(uint32_t*)(mem+PC);}else PC+=4;
-        0013 cond_call_imm.u64          if(cond){mem[SP]=LR; LR=PC+2; SP+=8; PC =*(uint64_t*)(mem+PC);}else PC+=8;
+        0012 cond_call_imm.u32          if(cond){mem[SP]=LR; LR=PC+4; SP+=8; PC =*(uint32_t*)(mem+PC);}else PC+=4;
+        0013 cond_call_imm.u64          if(cond){mem[SP]=LR; LR=PC+8; SP+=8; PC =*(uint64_t*)(mem+PC);}else PC+=8;
         0014 cond_call_rel_imm.u16      if(cond){mem[SP]=LR; LR=PC+2; SP+=8; PC +=*(int16_t*)(mem+PC);}else PC+=2;
-        0015 cond_call_rel_imm.u32      if(cond){mem[SP]=LR; LR=PC+2; SP+=8; PC +=*(int32_t*)(mem+PC);}else PC+=4;
-        0016 cond_call_rel_imm.u64      if(cond){mem[SP]=LR; LR=PC+2; SP+=8; PC +=*(int64_t*)(mem+PC);}else PC+=8;
+        0015 cond_call_rel_imm.u32      if(cond){mem[SP]=LR; LR=PC+4; SP+=8; PC +=*(int32_t*)(mem+PC);}else PC+=4;
+        0016 cond_call_rel_imm.u64      if(cond){mem[SP]=LR; LR=PC+8; SP+=8; PC +=*(int64_t*)(mem+PC);}else PC+=8;
         0017 cond_svc_return            if(cond) svc_return;
         0018 cond_hvc_return            if(cond) hvc_return;
         0019 cond_branch_imm.u16        if(cond){PC =*(uint16_t*)(mem+PC);}else PC+=2;
@@ -382,7 +403,7 @@ No operand Class:    [ 15:0 op2 [ values 0x0000-0x00FF]]
         001C cond_branch_rel_imm.u16    if(cond){PC +=*(int16_t*)(mem+PC);}else PC+=2;
         001D cond_branch_rel_imm.u32    if(cond){PC +=*(int32_t*)(mem+PC);}else PC+=4;
         001E cond_branch_rel_imm.u64    if(cond){PC +=*(int64_t*)(mem+PC);}else PC+=8;
-        001F unused    
+        001F cond_return                if(cond){PC = LR; SP-=8; LR=mem[SP]; }
 
 
     coprocessor_sync:
