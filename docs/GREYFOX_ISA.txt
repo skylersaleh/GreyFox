@@ -175,23 +175,44 @@ Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]]
         84XX store.f64 *(double*)(mem+A) = B
   
 
-    Compare Ops [0x9X: A = A cmp B, 0xAX: COND = A cmp B, 0xBX: COND |= A cmp B, 0xCX: COND &= A cmp B]
-        X0XX eq           (int64_t) A==B
-        X1XX neq          (int64_t) A!=B
-        X2XX less.i64     (int64_t) A<B
-        X3XX less.u64     (uint64_t) A<B
-        X4XX lequal.i64   (int64_t) A<=B
-        X5XX lequal.u64   (uint64_t) A<=B
-        X6XX eq_zero      (int64_t) B==0
-        X7XX neq_zero     (int64_t) B!=0
-        X8XX eq.f         (float) A==B
-        X9XX neq.f        (float) A!=B
-        XAXX less.f       (float) A<B
-        XBXX greater.f    (float) A>B
-        XCXX lequal.f     (float) A<=B
-        XDXX gequal.f     (float) A>=B
-        XEXX eq_zero.f    (float) B==0
-        XFXX neq_zero.f   (float) B!=0
+    Compare Ops [0x9X: A = A cmp B ("cmpread"), 0xAX: COND = A cmp B ("cmp"), 0xBX: COND |= A cmp B ("cmpor"), 0xCX: COND &= A cmp B ("cmpand")]
+        A and B ***must*** be different
+        X0XX cmpXXX.eq           (int64_t) A==B
+        X1XX cmpXXX.neq          (int64_t) A!=B
+        X2XX cmpXXX.less.i64     (int64_t) A<B
+        X3XX cmpXXX.less.u64     (uint64_t) A<B
+        X4XX cmpXXX.lequal.i64   (int64_t) A<=B
+        X5XX cmpXXX.lequal.u64   (uint64_t) A<=B
+        X6XX UNUSED
+        X7XX UNUSED
+        X8XX UNUSED
+        X9XX UNUSED
+        XAXX cmpXXX.eq.f         (float) A==B
+        XBXX cmpXXX.neq.f        (float) A!=B
+        XCXX cmpXXX.less.f       (float) A<B
+        XDXX cmpXXX.greater.f    (float) A>B
+        XEXX cmpXXX.lequal.f     (float) A<=B
+        XFXX cmpXXX.gequal.f     (float) A>=B
+
+    Zero compare Ops [0x9X: A = A cmp 0 ("cmpread"), 0xAX: COND = A cmp 0 ("cmp"), 0xBX: COND |= A cmp 0 ("cmpor"), 0xCX: COND &= A cmp 0 ("cmpand")]
+        A and B ***must*** be the same
+        X0XX cmpXXX.eq_zero           (int64_t) A==0
+        X1XX cmpXXX.neq_zero          (int64_t) A!=0
+        X2XX cmpXXX.less_zero.i64     (int64_t) A<0
+        X3XX UNUSED
+        X4XX cmpXXX.lequal_zero.i64   (int64_t) A<=0
+        X5XX cmpXXX.lequal_zero.u64   (uint64_t) A<=0
+        X6XX cmpXXX.greater_zero.i64      (int64_t) A==0
+        X7XX cmpXXX.greater_zero.u64      (uint64_t) A==0
+        X8XX cmpXXX.gequal_zero.i64      (int64_t) A>=0
+        X9XX cmpXXX.gequal_zero.u64      (uint64_t) A>=0
+        XAXX cmpXXX.eq_zero.f         (float) A==0
+        XBXX cmpXXX.neq_zero.f        (float) A!=0
+        XCXX cmpXXX.less_zero.f       (float) A<0
+        XDXX cmpXXX.greater_zero.f    (float) A>0
+        XEXX cmpXXX.lequal_zero.f     (float) A<=0
+        XFXX cmpXXX.gequal_zero.f     (float) A>=0
+
 One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]] 
     push_ops: strop(SP,A) SP+=sizeof(ldop):
         010x push.u8  *(uint8_t*) (mem+SP) = A; SP+=1 
