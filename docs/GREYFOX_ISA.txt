@@ -23,6 +23,11 @@ Registers:
     OFLOW Overflow Flag (bool)
     FPMODE uint8_t (floating point mode) [1:0 MODE [0: RNE 1: RTZ 2: R+Inf 3: R-Inf]] [2 flush denorms]
 
+General Notes:
+    - All opcodes that utilize PC (ie. PC relative load, relative branch) take PC after the opcode data but, before the immediate data. 
+      For example branch_rel_imm.u16 2 will branch to the instruction immediately after the 2 bytes of immediate data for the branch_rel_imm.u16
+      opcode. 
+
 16b Fixed width instruction encoding for each instruction class:
 
     Short Branch Class:  [ 10:0 branch offset] [11 conditional_flag ] [15:12 op [Value 0xF]]
