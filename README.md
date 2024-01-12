@@ -5,4 +5,5 @@ GreyFox is an experimental CPU ISA with the intent to be simple to compile and d
 At its current state it is just an idea. 
 
 - [ISA listing](docs/GREYFOX_ISA.txt)
+- [Reference Arch](docs/GREYFOX_ARCH.md)
 - [Bintools](https://github.com/jmerdich/binutils_greyfox)
