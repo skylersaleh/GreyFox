@@ -19,7 +19,6 @@ Registers:
     PC Program Counter (uint64_t), bit 0 is always 0
     SP Stack Pointer (uint64_t)
     LR Link Register (used to hide branch latency) (uint64_t)
-    COND Conditional Flag (bool)
     OFLOW Overflow Flag (bool)
     FPMODE uint8_t (floating point mode) [1:0 MODE [0: RNE 1: RTZ 2: R+Inf 3: R-Inf]] [2 flush denorms]
 
@@ -30,7 +29,7 @@ General Notes:
 
 16b Fixed width instruction encoding for each instruction class:
 
-    Short Branch Class:  [ 10:0 branch offset] [11 conditional_flag ] [15:12 op [Value 0xF]]
+    Short Branch Class:  [ 11:0 branch offset][15:12 op [Value 0xF]]
     Three Operand Class: [ 3:0 A  ] [ 7:4 B ] [ 11:8 C ] [ 15:12 op [Values 0xC-0xE]]
     Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [Values 0x10-0xBF]] 
     One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ Values 0x010-0x0FF]] 
@@ -41,8 +40,7 @@ General Notes:
 
 **Opcode Listing**
 Short Branch Class:
-    F0XX-F7XX branch_relative               PC += sign_extend (opcode[10:0]*2)
-    F8XX-FFXX cond_branch_relative if(COND) PC += sign_extend (opcode[10:0]*2)
+    F0XX-FFXX branch_relative               PC += sign_extend (opcode[11:0]*2)
 Three Operand Class: [ 3:0 A  ] [ 7:4 B ] [ 11:8 C ] [ 15:12 op [Values 0xB-0xF]]
     EXXX fma a+=b*c (double)
     DXXX mad a+=b*c (int64_t)
@@ -180,43 +178,70 @@ Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]]
         84XX store.f64 *(double*)(mem+A) = B
   
 
-    Compare Ops [0x9X: A = A cmp B ("cmpread"), 0xAX: COND = A cmp B ("cmp"), 0xBX: COND |= A cmp B ("cmpor"), 0xCX: COND &= A cmp B ("cmpand")]
-        A and B ***must*** be different
-        X0XX cmpXXX.eq           (int64_t) A==B
-        X1XX cmpXXX.neq          (int64_t) A!=B
-        X2XX cmpXXX.less.i64     (int64_t) A<B
-        X3XX cmpXXX.less.u64     (uint64_t) A<B
-        X4XX cmpXXX.lequal.i64   (int64_t) A<=B
-        X5XX cmpXXX.lequal.u64   (uint64_t) A<=B
-        X6XX UNUSED
-        X7XX UNUSED
-        X8XX UNUSED
-        X9XX UNUSED
-        XAXX cmpXXX.eq.f         (float) A==B
-        XBXX cmpXXX.neq.f        (float) A!=B
-        XCXX cmpXXX.less.f       (float) A<B
-        XDXX cmpXXX.greater.f    (float) A>B
-        XEXX cmpXXX.lequal.f     (float) A<=B
-        XFXX cmpXXX.gequal.f     (float) A>=B
+    Compare Ops [0x9XXX-0xCXXX]
+        Compare ops may come with an additional immediate called an extended compare command that can issue a branch, call, or return based
+        on the result of the comparison operation. An assembly mnemonic for a compare instruction is contructed by combining the comparison 
+        operation performed and the name of the operation named by th extended command.
+        So, for example. 
+            eq.f A, B will compute A = A == B
+            less.i64.branch_rel_imm.i16 A, B, -100  will compute   if(A<B)PC+=-100 
+            equal_zero.call_rel.i32 A, B, 0x32404885 will computeif(A==0)call_rel(0x32404885);
 
-    Zero compare Ops [0x9X: A = A cmp 0 ("cmpread"), 0xAX: COND = A cmp 0 ("cmp"), 0xBX: COND |= A cmp 0 ("cmpor"), 0xCX: COND &= A cmp 0 ("cmpand")]
-        A and B ***must*** be the same
-        X0XX cmpXXX.eq_zero           (int64_t) A==0
-        X1XX cmpXXX.neq_zero          (int64_t) A!=0
-        X2XX cmpXXX.less_zero.i64     (int64_t) A<0
-        X3XX UNUSED
-        X4XX cmpXXX.lequal_zero.i64   (int64_t) A<=0
-        X5XX UNUSED
-        X6XX cmpXXX.greater_zero.i64      (int64_t) A==0
-        X7XX UNUSED
-        X8XX cmpXXX.gequal_zero.i64      (int64_t) A>=0
-        X9XX UNUSED
-        XAXX cmpXXX.eq_zero.f         (float) A==0
-        XBXX cmpXXX.neq_zero.f        (float) A!=0
-        XCXX cmpXXX.less_zero.f       (float) A<0
-        XDXX cmpXXX.greater_zero.f    (float) A>0
-        XEXX cmpXXX.lequal_zero.f     (float) A<=0
-        XFXX cmpXXX.gequal_zero.f     (float) A>=0
+        Bits [15:12] describe the size of the data for the extended compare command (treated as an immediate in the instruction stream).
+            9XXX no extended branch/move command A = A cmp B. 
+            AXXX XXXX 2 Byte extended branch/move command after compare instruction bytes
+                AXXX 0000 "return"                           if(A cmp B){PC = LR; SP-=8; LR=mem[SP]}
+                AXXX 0001 - AXXX 7FFF "call_rel_imm.i16"     if(A cmp B){mem[SP]=LR; LR=PC+2; SP+=8; PC +=(int16_t)(imm[14:0]*2);}
+                AXXX 8000 "svc_return"                       if(A cmp B){svc_return;}
+                AXXX 8001 - AXXX FFFF "branch_rel_imm.i16"   if(A cmp B){PC +=(int16_t)(imm[14:0]*2);}
+            BXXX XXXX XXXX 4 Byte extended branch/move command after compare instruction bytes
+                BXXX 0000 0000 "hvc_return"                            if(A cmp B){hvc_return;}
+                BXXX 0000 0001 - BXXX 7FFF FFFF "call_rel_imm.i32"     if(A cmp B){mem[SP]=LR; LR=PC+2; SP+=8; PC +=(int32_t)(imm[30:0]*2);}
+                BXXX 8000 0000 unused
+                BXXX 8000 0001 - BXXX FFFF FFFF "branch_rel_imm.i32"   if(A cmp B){PC +=(int32_t)(imm[30:0]*2);}
+            CXXX XXXX XXXX XXXX XXXX 8 Byte extended branch/move command after compare instruction bytes
+                CXXX 0000 0000 0000 0000 unused
+                CXXX 0000 0000 0000 0001 - CXXX 7FFF FFFF FFFF FFFF "call_rel_imm.i64"     if(A cmp B){mem[SP]=LR; LR=PC+2; SP+=8; PC +=(int64_t)(imm[62:0]*2);}
+                CXXX 8000 0000 0000 0000 unused
+                CXXX 8000 0000 0000 0001 - CXXX FFFF FFFF FFFF FFFF "branch_rel_imm.i64"   if(A cmp B){PC +=(int64_t)(imm[62:0]*2);}
+        Bits [11:8] Encode the comparison operation being performed: 
+            A and B are different registers (register vs. register)
+                X0XX eq           A==B
+                X1XX neq          A!=B
+                X2XX less.i64     (int64_t) A<B
+                X3XX less.u64     (uint64_t) A<B
+                X4XX lequal.i64   (int64_t) A<=B
+                X5XX lequal.u64   (uint64_t) A<=B
+                X6XX UNUSED
+                X7XX UNUSED
+                X8XX UNUSED
+                X9XX UNUSED
+                XAXX eq.f         (float) A==B
+                XBXX neq.f        (float) A!=B
+                XCXX less.f       (float) A<B
+                XDXX greater.f    (float) A>B
+                XEXX lequal.f     (float) A<=B
+                XFXX gequal.f     (float) A>=B
+
+            A and B are the same register (register vs. zero)
+                X0XX eq_zero           A==0
+                X1XX neq_zero          A!=0
+                X2XX less_zero.i64     (int64_t) A<0
+                X3XX UNUSED
+                X4XX lequal_zero.i64   (int64_t) A<=0
+                X5XX UNUSED
+                X6XX greater_zero.i64  (int64_t) A>0
+                X7XX gequal_zero.i64   (int64_t) A>=0
+                X8XX UNUSED
+                X9XX UNUSED
+                XAXX eq_zero.f         (float) A==0
+                XBXX neq_zero.f        (float) A!=0
+                XCXX less_zero.f       (float) A<0
+                XDXX greater_zero.f    (float) A>0
+                XEXX lequal_zero.f     (float) A<=0
+                XFXX gequal_zero.f     (float) A>=0
+        Bits [7:4] Encode the index of register B
+        Bits [3:0] Encode the index of register A
 
 One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]] 
     push_ops: strop(SP,A) SP+=sizeof(ldop):
@@ -284,26 +309,20 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         040x getpc : mov A = PC
         041x getsp : mov A = SP
         042x getlr : mov A = LR
-        043x getcond : mov A = COND ? 1:0
-        044x setpc : mov PC = A 
+        043x unused
+        044x unused
         045x setsp : mov SP = A 
         046x setlr : mov LR = A 
-        047x setcond : mov COND = A!=0
-        048x pushcond : push *(uint8_t*) (mem+SP) = COND?1:0; SP+=1
-        049x popcond : pop  SP-=1; COND=(*(uint8_t*) (mem+SP))!=0;
+        047x unused
+        048x unused
+        049x unused
         04Ax-04Fx unused
     call_ops:
         050x call_indirect            mem[SP]=LR;LR=PC+2; SP+=8; PC = A;
         051x call_relative_indirect   mem[SP]=LR;LR=PC+2; SP+=8; PC += A;
         052x branch_indirect          PC = A;
         053x branch_relative_indirect PC += A;
-
-        054x cond_call_indirect            if(cond){mem[SP]=LR;LR=PC+2; SP+=8; PC = A;}
-        055x cond_call_relative_indirect   if(cond){mem[SP]=LR;LR=PC+2; SP+=8; PC += A;}
-        056x cond_branch_indirect          if(cond){PC = A;}
-        057x cond_branch_relative_indirect if(cond){PC += A;}
-
-        0580-05FF unused
+        0540-05FF unused
     add_sub_pow2_constant: [A=i0-i15]
         060x inc_2 : add A+=2
         061x inc_4 : add A+=4
@@ -388,28 +407,12 @@ No operand Class:    [ 15:0 op2 [ values 0x0000-0x00FF]]
         0009 branch_imm.u16        PC =*(uint16_t*)(mem+PC);
         000A branch_imm.u32        PC =*(uint32_t*)(mem+PC);
         000B branch_imm.u64        PC =*(uint64_t*)(mem+PC);
-        000C branch_rel_imm.u16    PC +=*(int16_t*)(mem+PC);
-        000D branch_rel_imm.u32    PC +=*(int32_t*)(mem+PC);
-        000E branch_rel_imm.u64    PC +=*(int64_t*)(mem+PC);
+        000C branch_rel_imm.i16    PC +=*(int16_t*)(mem+PC);
+        000D branch_rel_imm.i32    PC +=*(int32_t*)(mem+PC);
+        000E branch_rel_imm.i64    PC +=*(int64_t*)(mem+PC);
         000F return                PC = LR; SP-=8; LR=mem[SP] 
-    conditional_flow_control:
-        0010 unused
-        0011 cond_call_imm.u16          if(cond){mem[SP]=LR; LR=PC+2; SP+=8; PC =*(uint16_t*)(mem+PC);}else PC+=2;
-        0012 cond_call_imm.u32          if(cond){mem[SP]=LR; LR=PC+4; SP+=8; PC =*(uint32_t*)(mem+PC);}else PC+=4;
-        0013 cond_call_imm.u64          if(cond){mem[SP]=LR; LR=PC+8; SP+=8; PC =*(uint64_t*)(mem+PC);}else PC+=8;
-        0014 cond_call_rel_imm.u16      if(cond){mem[SP]=LR; LR=PC+2; SP+=8; PC +=*(int16_t*)(mem+PC);}else PC+=2;
-        0015 cond_call_rel_imm.u32      if(cond){mem[SP]=LR; LR=PC+4; SP+=8; PC +=*(int32_t*)(mem+PC);}else PC+=4;
-        0016 cond_call_rel_imm.u64      if(cond){mem[SP]=LR; LR=PC+8; SP+=8; PC +=*(int64_t*)(mem+PC);}else PC+=8;
-        0017 cond_svc_return            if(cond) svc_return;
-        0018 cond_hvc_return            if(cond) hvc_return;
-        0019 cond_branch_imm.u16        if(cond){PC =*(uint16_t*)(mem+PC);}else PC+=2;
-        001A cond_branch_imm.u32        if(cond){PC =*(uint32_t*)(mem+PC);}else PC+=4;
-        001B cond_branch_imm.u64        if(cond){PC =*(uint64_t*)(mem+PC);}else PC+=8;
-        001C cond_branch_rel_imm.i16    if(cond){PC +=*(int16_t*)(mem+PC);}else PC+=2;
-        001D cond_branch_rel_imm.i32    if(cond){PC +=*(int32_t*)(mem+PC);}else PC+=4;
-        001E cond_branch_rel_imm.i64    if(cond){PC +=*(int64_t*)(mem+PC);}else PC+=8;
-        001F cond_return                if(cond){PC = LR; SP-=8; LR=mem[SP]; }
 
+        0010-001F unused
 
     coprocessor_sync:
         0020-002F wait.cpc_reg cp_id0-cp_idF (waits for coprocessor register writeback)
