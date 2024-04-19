@@ -13,7 +13,8 @@ title: GreyFox CPU Core
 graph TD
     subgraph Frontend
         Decoder["32B Decoder (16 opcodes)"] -->|16 opcodes| Linearize[Linearize & Bin] -->
-        |1 opcode| BRANCH --> Decoder
+        |1 opcode| Sync --> Decoder
+        BranchP["Branch Predictor"] <-->Decoder
     end
 
     Linearize --> |5 opcodes| FSchedule 
@@ -23,20 +24,21 @@ graph TD
         ISchedule --> |2 opcodes|ILDST -->IREG
     end
     subgraph Float
-        FSchedule -->  FALU0 & FALU1 & FALU2 & FALU3 & FSFU -->FREG
+        FSchedule -->  FALU0 & FALU1 & FMUL0 & FMUL1 & FSFU -->FREG
         FSchedule -->  |2 opcodes| FLDST -->FREG
     end
-    subgraph Core Cache
-        D$<-->TLB
-    endx
+    subgraph Core Cachei
+        TLB<-->D$
+    end
     TLB-->MMU
 
-    ILDST ------> |2x8B| D$
-    FLDST ------> |2x8B| D$
+    FLDST & ILDST --->Sync
+    ILDST -----> |2x8B| D$
+    FLDST -----> |2x8B| D$
 
-    D$ --> |64B/2clk| Decoder
+    D$ ---> |64B/2clk| Decoder
     subgraph SoC
-        D$ <--> |64B/2clk|L2 <--> Memory
+        D$ <--> |64B/2clk|L2 <-->Memory
         MMU<-->L2
     end
 ```
