@@ -100,18 +100,24 @@ When the window of live registers in the renaming table exceeds the register def
 A cascade contains all the information required to represent the state of the processor at a specific point in the instruction stream. They are tracked for any point the CPU may need to rewind its execution state to:
 - Section where a branch is predicted but not known. 
 - Memory Fetch/Store (which may trigger an exception)
+
 They contain the following information:
+
 - Register Renaming Table
 - LR, PC, SP, Flag registers
 - Last register allocated
 - Earliest rename register used
+
 A cascade can exist in the following states:
+
 - INACTIVE: Cascade is not currently allocated to any instructions
 - ACTIVE: Cascade has pending instructions in the pipe, but we aren't sure if this path is valid yet. 
   ALU processing may be performed during this, but no writes to memory should be buffered until a commit, or invalidate is recieved.  
 - COMMIT: We are sure the cascade is valid, writes can be commited to memory
 - INVALIDATE: We are sure the cascade is invalid, writes to memory must be discarded. ALU processing may be skipped. 
+
 To rewind the state of the CPU to a previous cascade the following is performed:
+
 1) All cascades between the cascade being rewound and the current cascade are invalidated
 2) A new cascade is allocated with the following state:
     - The Register Renaming Table is from the rewind cascade
