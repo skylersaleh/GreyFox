@@ -82,7 +82,7 @@ Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]]
         2FXX addsl2     A += B<<2  | For array access
         30XX addsl3     A += B<<3 /
         31XX or         A |= B
-        32XX xor        A ^= B
+        32XX xor        A ^= B  (xor A, A is a zero-ing idiom for mov A, 0)
         33XX and        A &= B
         34XX not        A = ~B
         35XX bitreverse A = bitreverse(B)
@@ -428,3 +428,103 @@ No operand Class:    [ 15:0 op2 [ values 0x0000-0x00FF]]
         0041 wait.interrupt   Wait for interrupt
         
     0042-00FF unused
+
+Application Binary Interface (ABI):
+
+    Datatypes:
+        In general, GreyFox stores/processes its integer types in 2's complement, its floating pointer types in IEEE-754R floating point, and supports 56 bit VA/PA addresses. 
+        C language datatypes map to the following: 
+            byte:       8 bits
+            char:       8 bits,  unsigned by default, signed numbers are 2's complement encoded
+            short:      16 bits, signed by default, signed numbers are 2's complement encoded
+            int:        32 bits, signed by default, signed numbers are 2's complement encoded
+            long:       32 bits, signed by default, signed numbers are 2's complement encoded
+            long long:  64 bits, signed by default, signed numbers are 2's complement encoded
+            half:       16 bits, IEEE-754R floating point binary16 (1s, 5e,  10f)
+            float:      32 bits, IEEE-754R floating point binary32 (1s, 8e,  23f)
+            double:     64 bits, IEEE-754R floating point binary64 (1s, 11e, 52f)
+            pointer:    64 bits  (only bottom 56 bits used by HW, top 8 bits ignored)
+
+        Unaligned loads/stores are supported, but may incur a performance penalty of the cost of two memory loads/stores.
+        Unaligned atomic operations are not supported. 
+        To avoid performance penalties and allow atomic operation, it is recommended to keep the following alignments:
+            8-bit types: align to  1 byte
+            16-bit types: align to 2 bytes
+            32-bit types: align to 4 bytes
+            64-bit types: align to 8 bytes
+            structure/union types == 1 byte:    align to 1 bytes
+            structure/union types == 2 byte:    align to 2 bytes
+            structure/union types == 3-4 bytes: align to 4 bytes
+            structure/union types > 4 bytes:    align to 8 bytes
+            arrays: same alignment as the element type of the array
+        
+        Unpacked structures (default):
+            - Store members in order
+            - Pad each member to the recommended alignment above
+            - If the structure is 3 bytes in size, pad to 4 bytes. 
+            - If the structure is > 4 bytes in size, pad to a multiple of 8 bytes
+        
+        Packed structures:
+            - Store members in order
+            - No padding is applied (not even to maintain alignment)  
+        
+        Unpacked unions (default):
+            - Members are aliased, each stored at the first byte of the union
+            - The union is sized to the largest member
+            - If the union is 3 bytes in size, pad to 4 bytes. 
+            - If the union is > 4 bytes in size, pad to a multiple of 8 bytes
+        
+        Packed unions:
+            - Members are aliased, each stored at the first byte of the union
+            - The union is sized to the largest member
+            - No padding is applied
+
+        Arrays:
+            - The pointer points to element 0
+            - Arrays are densly packed, with no padding (not even to maintain alignment)
+            - Elements are stored at ascending memory locations (ie. &array[0] +sizeof(array[0]) == &array[1])
+        
+        Function Pointers:
+            - Function pointers are pointers to the start of the first instruction of the functions code sequence. 
+
+        Calling Convention:
+            Caller Saved Registers:
+                Caller Saved Registers (sometimes referred to as volatile) do not preserve their value across function calls.
+                They can be used by the Callee for arbitrary computation without saving/restoring them.
+                - i0,i1,i2,i3,i4,i5,i6,i7
+                - f0,f1,f2,f3,f4,f5,f6,f7
+                - **RESERVED** FPMODE
+            Callee Saved Registers:
+                Callee Saved Registers (sometimes referred to as non-volatile) do preserve their value across function calls.
+                They can be used by the Callee for arbitrary computation but the callee must restore them to their original values before returning to the caller. 
+                - i8,i9,i10,i11,i12,i13,i14,i15
+                - f8,f9,f10,f11,f12,f13,f14,f15
+                - FP, SP, LR, PC (HW managed by call/ret instructions)
+            Function Call Arguments and Return Data: 
+                Argument Lists
+                    - Function call arguments and return results are passed through argument lists. 
+                    - Integral, Floating Point, Pointer, and POD structures less than or equal to the register word size can be passed directly in the argument list. 
+                    - Non-POD structures, arrays, and POD structures larger than the word size are stored in memory allocated/owned by the caller and a pointer to the structure is stored in the argument list instead (even for return data).
+                    - Arguments are passed in the order that they appear in the function call definition
+                    - The outputs of in/out parameters overwrite the input data and are accessible by the caller after the callee returns. 
+                    - The first 7 non floating point elements and the first 7 floating point elements in the call argument list are passed in registers:
+                        - Non-FP Registers:  i0,i1,i2,i3,i4,i5,i6
+                        - FP Registers:      f0,f1,f2,f3,f4,f5,f6
+                        - It is the responsibility of the callee to narrow data passed through registers to the underlying data type if the passed data type is smaller than the word size. 
+                        - Structures passed through registers are encoded identically to their in memory representation.  
+                    - The first non floating point element and the first floating point element in the return argument list are passed in registers:
+                        - Non-FP Register:  i7
+                        - FP Register:      f7
+                        - It is the responsibility of the caller to narrow data returned through registers to the underlying data type if the passed data type is smaller than the word size. 
+                        - Pointer values and structures smaller or equal to the word size are in integer registers
+                        - Structures passed through registers are encoded identically to their in memory representation. 
+                    - Portions of the call argument list that don't fit in registers are pushed to the stack by the caller and popped from the stack bt the callee using the sized push/pop operations before the call instruction. 
+                    - The return argument list always fits in registers.  
+        Stack Frame Format:
+        Globals: 
+            Globals are stored in a fixed segment of the executable and relocated with the rest of the executable code. 
+            This allows them to be accessed using PC relative addressing in a position independent executable. 
+
+
+
+
