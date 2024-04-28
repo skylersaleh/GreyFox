@@ -19,13 +19,15 @@ Registers:
     PC Program Counter (uint64_t), bit 0 is always 0
     SP Stack Pointer (uint64_t)
     LR Link Register (used to hide branch latency) (uint64_t)
-    OFLOW Overflow Flag (bool)
-    FPMODE uint8_t (floating point mode) [1:0 MODE [0: RNE 1: RTZ 2: R+Inf 3: R-Inf]] [2 flush denorms]
+    FP Frame Pointer (uint64_t)
+    **RESERVED** OFLOW Overflow Flag (bool)
+    **RESERVED** FPMODE uint8_t (floating point mode) [1:0 MODE [0: RNE 1: RTZ 2: R+Inf 3: R-Inf]] [2 flush denorms]
 
 General Notes:
-    - All opcodes that utilize PC (ie. PC relative load, relative branch) take PC after the opcode data but, before the immediate data. 
-      For example branch_rel_imm.u16 2 will branch to the instruction immediately after the 2 bytes of immediate data for the branch_rel_imm.u16
+    - All opcodes that utilize PC (ie. PC relative load, relative branch) take PC after the opcode data and the immediate data. 
+      For example branch_rel_imm.u16 2 will branch to the instruction 2 bytes after the 2 bytes of immediate data for the branch_rel_imm.u16
       opcode. 
+    - Reserved instruction classes/registers are subject to large changes based on compiler driven testing. 
 
 16b Fixed width instruction encoding for each instruction class:
 
@@ -183,23 +185,23 @@ Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]]
         So, for example. 
             eq.f A, B will compute A = A == B
             less.i64.branch_rel_imm.i16 A, B, -100  will compute   if(A<B)PC+=-100 
-            equal_zero.call_rel.i32 A, B, 0x32404885 will computeif(A==0)call_rel(0x32404885);
+            equal_zero.call_rel.i32 A, B, 0x32404885 will compute  if(A==0)call_rel(0x32404885);
 
         Bits [15:12] describe the size of the data for the extended compare command (treated as an immediate in the instruction stream).
             9XXX no extended branch/move command A = A cmp B. 
             AXXX XXXX 2 Byte extended branch/move command after compare instruction bytes
-                AXXX 0000 "return"                           if(A cmp B){PC = LR; SP-=8; LR=mem[SP]}
-                AXXX 0001 - AXXX 7FFF "call_rel_imm.i16"     if(A cmp B){mem[SP]=LR; LR=PC+2; SP+=8; PC +=(int16_t)(imm[14:0]*2);}
+                AXXX 0000 "return"                           if(A cmp B){PC = LR; SP-=8; FP=mem[SP]; SP-=8; LR=mem[SP]}
+                AXXX 0001 - AXXX 7FFF "call_rel_imm.i16"     if(A cmp B){mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP;  PC +=(int16_t)(imm[14:0]*2);}
                 AXXX 8000 "svc_return"                       if(A cmp B){svc_return;}
                 AXXX 8001 - AXXX FFFF "branch_rel_imm.i16"   if(A cmp B){PC +=(int16_t)(imm[14:0]*2);}
             BXXX XXXX XXXX 4 Byte extended branch/move command after compare instruction bytes
                 BXXX 0000 0000 "hvc_return"                            if(A cmp B){hvc_return;}
-                BXXX 0000 0001 - BXXX 7FFF FFFF "call_rel_imm.i32"     if(A cmp B){mem[SP]=LR; LR=PC+2; SP+=8; PC +=(int32_t)(imm[30:0]*2);}
+                BXXX 0000 0001 - BXXX 7FFF FFFF "call_rel_imm.i32"     if(A cmp B){mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC +=(int32_t)(imm[30:0]*2);}
                 BXXX 8000 0000 unused
                 BXXX 8000 0001 - BXXX FFFF FFFF "branch_rel_imm.i32"   if(A cmp B){PC +=(int32_t)(imm[30:0]*2);}
             CXXX XXXX XXXX XXXX XXXX 8 Byte extended branch/move command after compare instruction bytes
                 CXXX 0000 0000 0000 0000 unused
-                CXXX 0000 0000 0000 0001 - CXXX 7FFF FFFF FFFF FFFF "call_rel_imm.i64"     if(A cmp B){mem[SP]=LR; LR=PC+2; SP+=8; PC +=(int64_t)(imm[62:0]*2);}
+                CXXX 0000 0000 0000 0001 - CXXX 7FFF FFFF FFFF FFFF "call_rel_imm.i64"     if(A cmp B){mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC +=(int64_t)(imm[62:0]*2);}
                 CXXX 8000 0000 0000 0000 unused
                 CXXX 8000 0000 0000 0001 - CXXX FFFF FFFF FFFF FFFF "branch_rel_imm.i64"   if(A cmp B){PC +=(int64_t)(imm[62:0]*2);}
         Bits [11:8] Encode the comparison operation being performed: 
@@ -304,23 +306,28 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         03Ex unused
         03Fx unused
     special_reg_op [A=i0-i15]
-        040x getpc : mov A = PC
-        041x getsp : mov A = SP
-        042x getlr : mov A = LR
-        043x unused
-        044x unused
-        045x setsp : mov SP = A 
-        046x setlr : mov LR = A 
-        047x unused
-        048x unused
-        049x unused
-        04Ax-04Fx unused
+        040x mov A, PC       A  = PC
+        041x mov A, SP       A  = SP
+        042x mov A, LR       A  = LR
+        043x mov A, FP       A  = FP
+        044x mov PC, A       PC = A (branch_indirect)
+        045x mov SP, A       SP = A
+        046x mov LR, A       LR = A
+        047x mov FP, A       FP = A
+
+        048x add A, PC       A  += PC
+        049x add A, SP       A  += SP
+        04Ax add A, LR       A  += LR
+        04Bx add A, FP       A  += FP
+        04Cx add PC, A       PC += A  (branch_relative_indirect)
+        04Dx add SP, A       SP += A
+        04Ex add LR, A       LR += A
+        04Fx add FP, A       FP += A
+   
     call_ops:
-        050x call_indirect            mem[SP]=LR;LR=PC+2; SP+=8; PC = A;
-        051x call_relative_indirect   mem[SP]=LR;LR=PC+2; SP+=8; PC += A;
-        052x branch_indirect          PC = A;
-        053x branch_relative_indirect PC += A;
-        0540-05FF unused
+        050x call_indirect            mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC = A;
+        051x call_relative_indirect   mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC += A;
+        0520-05FF unused
     **RESERVED** add_sub_pow2_constant: [A=i0-i15]
         060x inc_2 : add A+=2
         061x inc_4 : add A+=4
@@ -394,12 +401,12 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
 No operand Class:    [ 15:0 op2 [ values 0x0000-0x00FF]] 
     flow_control:
         0000 illegal
-        0001 call_imm.u16          mem[SP]=LR; LR=PC+2; SP+=8; PC =*(uint16_t*)(mem+PC);
-        0002 call_imm.u32          mem[SP]=LR; LR=PC+4; SP+=8; PC =*(uint32_t*)(mem+PC);
-        0003 call_imm.u64          mem[SP]=LR; LR=PC+8; SP+=8; PC =*(uint64_t*)(mem+PC);
-        0004 call_rel_imm.i16      mem[SP]=LR; LR=PC+2; SP+=8; PC +=*(int16_t*)(mem+PC);
-        0005 call_rel_imm.i32      mem[SP]=LR; LR=PC+4; SP+=8; PC +=*(int32_t*)(mem+PC);
-        0006 call_rel_imm.i64      mem[SP]=LR; LR=PC+8; SP+=8; PC +=*(int64_t*)(mem+PC);
+        0001 call_imm.u16          mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC  =*(uint16_t*)(mem+PC);
+        0002 call_imm.u32          mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC  =*(uint32_t*)(mem+PC);
+        0003 call_imm.u64          mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC  =*(uint64_t*)(mem+PC);
+        0004 call_rel_imm.i16      mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC +=*(int16_t*)(mem+PC);
+        0005 call_rel_imm.i32      mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC +=*(int32_t*)(mem+PC);
+        0006 call_rel_imm.i64      mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC +=*(int64_t*)(mem+PC);
         0007 svc_return            svc_return;
         0008 hvc_return            hvc_return;
         0009 branch_imm.u16        PC =*(uint16_t*)(mem+PC);
@@ -408,7 +415,7 @@ No operand Class:    [ 15:0 op2 [ values 0x0000-0x00FF]]
         000C branch_rel_imm.i16    PC +=*(int16_t*)(mem+PC);
         000D branch_rel_imm.i32    PC +=*(int32_t*)(mem+PC);
         000E branch_rel_imm.i64    PC +=*(int64_t*)(mem+PC);
-        000F return                PC = LR; SP-=8; LR=mem[SP] 
+        000F return                PC = LR; SP-=8; FP=mem[SP]; SP-=8; LR=mem[SP] 
 
         0010-001F unused
 
