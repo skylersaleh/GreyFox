@@ -41,7 +41,7 @@ General Notes:
 **Opcode Listing**
 Short Branch Class:
     F0XX-FFXX branch_relative               PC += sign_extend (opcode[11:0]*2)
-Three Operand Class: [ 3:0 A  ] [ 7:4 B ] [ 11:8 C ] [ 15:12 op [Values 0xB-0xF]]
+**RESERVED** Three Operand Class: [ 3:0 A  ] [ 7:4 B ] [ 11:8 C ] [ 15:12 op [Values 0xB-0xF]]
     EXXX fma a+=b*c (double)
     DXXX mad a+=b*c (int64_t)
 Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]] 
@@ -107,19 +107,17 @@ Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]]
         46XX rdiv.f  b=a/b
         47XX min.f   a=min(a,b)
         48XX max.f   a=max(a,b)
-        49XX cmov.f  A = cnd ? A : B
-        4AXX rcmov.f A = cnd ? B : A
-        4BXX abs.f   A = fabs(B)
-        4CXX sign.f  A = fsign(B)
-        4DXX neg.f   A = -B
-        4EXX inc.f   A = B+1
-        4FXX dec.f   A = B-1
-        50XX round.f A = round(B)
-        51XX floor.f A = floor(B)
-        52XX ceil.f  A = ceil(B)
-        53XX unused
+        49XX abs.f   A = fabs(B)
+        4AXX sign.f  A = fsign(B)
+        4BXX neg.f   A = -B
+        4CXX inc.f   A = B+1
+        4DXX dec.f   A = B-1
+        4EXX round.f A = round(B)
+        4FXX floor.f A = floor(B)
+        50XX ceil.f  A = ceil(B)
+        51xx-53xx unused
 
-    coprocessor_ops: [Used for extended instruction sets: ie. Vector, Matrix, RT, Texture, AI, String Ops, DMA, encryption]
+    **RESERVED** coprocessor_ops: [Used for extended instruction sets: ie. Vector, Matrix, RT, Texture, AI, String Ops, DMA, encryption]
         54XX cpcwr.2i  coprocessor( *(uint16_t*)(mem+PC),A,B);  PC+=2;   [A, B = i0-i15]
         55XX cpcwr.4i  coprocessor( *(uint32_t*)(mem+PC),A,B);  PC+=4;   [A, B = i0-i15]
         56XX cpcwr.8i  coprocessor( *(uint64_t*)(mem+PC),A,B);  PC+=8;   [A, B = i0-i15]
@@ -227,9 +225,9 @@ Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]]
                 X0XX eq_zero           A==0
                 X1XX neq_zero          A!=0
                 X2XX less_zero.i64     (int64_t) A<0
-                X3XX UNUSED
+                X3XX UNUSED (Note: u64 lequal is the equivalent to eq_zero)
                 X4XX lequal_zero.i64   (int64_t) A<=0
-                X5XX UNUSED
+                X5XX UNUSED (Note: u64 less zero is always false)
                 X6XX greater_zero.i64  (int64_t) A>0
                 X7XX gequal_zero.i64   (int64_t) A>=0
                 X8XX UNUSED
@@ -323,7 +321,7 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         052x branch_indirect          PC = A;
         053x branch_relative_indirect PC += A;
         0540-05FF unused
-    add_sub_pow2_constant: [A=i0-i15]
+    **RESERVED** add_sub_pow2_constant: [A=i0-i15]
         060x inc_2 : add A+=2
         061x inc_4 : add A+=4
         062x inc_8: add A+=8
@@ -340,7 +338,7 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         06Dx dec_64 : sub A-=64
         06Ex dec_128 : sub A-=128
         06Fx dec_256 : sub A-=256
-    add_sub_special_constant [A=i0-i15]
+    **RESERVED** add_sub_special_constant [A=i0-i15]
         070x inc_3 : add A+=3
         071x inc_5 : add A+=5
         072x inc_10 : add A+=10
@@ -358,7 +356,7 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         07Ex dec_1000 : sub A-=1000
         07Fx dec_10000 : sub A-=10000
 
-    add_sub_float_constant: [A=f0-f15]
+    **RESERVED** add_sub_float_constant: [A=f0-f15]
         080x inc_0.25 : add.f A+=0.25
         081x inc_0.5 : add.f A+=0.5
         082x inc_1.0 : add.f A+=1.0
@@ -414,7 +412,7 @@ No operand Class:    [ 15:0 op2 [ values 0x0000-0x00FF]]
 
         0010-001F unused
 
-    coprocessor_sync:
+    **RESERVED** coprocessor_sync:
         0020-002F wait.cpc_reg cp_id0-cp_idF (waits for coprocessor register writeback)
         0030-003F wait.cpc_mem cp_id0-cp_idF (waits for coprocessor register and memory writeback)
 
