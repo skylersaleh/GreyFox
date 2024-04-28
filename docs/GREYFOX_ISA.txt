@@ -254,13 +254,13 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         015x unused
         016x unused
         017x unused
+        
         018x unused
-
         019x push.f16  *(half*)(mem+SP)   = A; SP+=2
         01Ax push.f32  *(float*)(mem+SP)  = A; SP+=4
         01Bx push.f64  *(double*)(mem+SP) = A; SP+=8
 
-        01Cx unused
+        01Cx push2.u64 (&A)[0]=*(int64_t*)(mem+SP); (&A)[1]=*(int64_t*)(mem+SP+8); SP+=16;
         01Dx unused
         01Ex unused
         01Fx unused
@@ -281,7 +281,7 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         02Ax pop.f32  SP-=4; A=*(float*)(mem+SP);
         02Bx pop.f64  SP-=8; A=*(double*)(mem+SP);
 
-        02Cx unused
+        02Cx pop2.u64 (&A)[0]=*(int64_t*)(mem+SP); (&A)[1]=*(int64_t*)(mem+SP+8); SP+=16;
         02Dx unused
         02Ex unused
         02Fx unused
@@ -301,7 +301,7 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         03Ax ldim.f32  A=*(float*)(mem+PC);  PC+= 4
         03Bx ldim.f64  A=*(double*)(mem+PC); PC+= 8
 
-        03Cx unused
+        03Cx ldim2.u64 (&A)[0]=*(int64_t*)(mem+PC+SP); (&A)[1]=*(int64_t*)(mem+PC+8); PC+=16;
         03Dx unused
         03Ex unused
         03Fx unused
