@@ -25,9 +25,8 @@ Registers:
     **RESERVED** FPMODE uint8_t (floating point mode) [1:0 MODE [0: RNE 1: RTZ 2: R+Inf 3: R-Inf]] [2 flush denorms]
 
 General Notes:
-    - All opcodes that utilize PC (ie. PC relative load, relative branch) take PC after the opcode data and the immediate data. 
-      For example branch_rel_imm.u16 2 will branch to the instruction 2 bytes after the 2 bytes of immediate data for the branch_rel_imm.u16
-      opcode. 
+    - Instructions that do not assign PC in their definition advance PC by 2 bytes. When PC is referenced in an instruction definition, it starts out as pointing to the first byte of the instruction. 
+    - Advancing PC by zero does not increment the PC (ie. branch_relative #0). So, it will cause the program to loop infinitely over the instruction. 
     - Reserved instruction classes/registers are subject to large changes based on compiler driven testing. 
 
 16b Fixed width instruction encoding for each instruction class:
@@ -43,7 +42,7 @@ General Notes:
 
 **Opcode Listing**
 Short Branch Class:
-    F0XX-FFXX branch_relative               PC += sign_extend (opcode[11:0]*2)
+    F0XX-FFXX branch_rel               PC += sign_extend (opcode[11:0]*2)
 **RESERVED** Three Operand Class: [ 3:0 A  ] [ 7:4 B ] [ 11:8 C ] [ 15:12 op [Values 0xB-0xF]]
     EXXX fma a+=b*c (double)
     DXXX mad a+=b*c (int64_t)
@@ -121,93 +120,105 @@ Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]]
         51xx-53xx unused
 
     **RESERVED** coprocessor_ops: [Used for extended instruction sets: ie. Vector, Matrix, RT, Texture, AI, String Ops, DMA, encryption]
-        54XX cpcwr.2i  coprocessor( *(uint16_t*)(mem+PC),A,B);  PC+=2;   [A, B = i0-i15]
-        55XX cpcwr.4i  coprocessor( *(uint32_t*)(mem+PC),A,B);  PC+=4;   [A, B = i0-i15]
-        56XX cpcwr.8i  coprocessor( *(uint64_t*)(mem+PC),A,B);  PC+=8;   [A, B = i0-i15]
-        57XX cpcwr.2f  coprocessor( *(uint16_t*)(mem+PC),A,B);  PC+=2;   [A, B = f0-f15]
-        58XX cpcwr.4f  coprocessor( *(uint32_t*)(mem+PC),A,B);  PC+=4;   [A, B = f0-f15]
-        59XX cpcwr.8f  coprocessor( *(uint64_t*)(mem+PC),A,B);  PC+=8;   [A, B = f0-f15]
-        5AXX cpcrd.2i  A= coprocessor( *(uint16_t*)(mem+PC),A,B);  PC+=2;   [A, B = i0-i15]
-        5BXX cpcrd.4i  A= coprocessor( *(uint32_t*)(mem+PC),A,B);  PC+=4;   [A, B = i0-i15]
-        5CXX cpcrd.8i  A= coprocessor( *(uint64_t*)(mem+PC),A,B);  PC+=8;   [A, B = i0-i15]
-        5DXX cpcrd.2f  A= coprocessor( *(uint16_t*)(mem+PC),A,B);  PC+=2;   [A, B = f0-f15]
-        5EXX cpcrd.4f  A= coprocessor( *(uint32_t*)(mem+PC),A,B);  PC+=4;   [A, B = f0-f15]
-        5FXX cpcrd.8f  A= coprocessor( *(uint64_t*)(mem+PC),A,B);  PC+=8;   [A, B = f0-f15]
+        54XX cpcwr.2i  coprocessor( *(uint16_t*)(PC+2),A,B);  PC+=4;   [A, B = i0-i15]
+        55XX cpcwr.4i  coprocessor( *(uint32_t*)(PC+2),A,B);  PC+=6;   [A, B = i0-i15]
+        56XX cpcwr.8i  coprocessor( *(uint64_t*)(PC+2),A,B);  PC+=10;  [A, B = i0-i15]
+        57XX cpcwr.2f  coprocessor( *(uint16_t*)(PC+2),A,B);  PC+=4;   [A, B = f0-f15]
+        58XX cpcwr.4f  coprocessor( *(uint32_t*)(PC+2),A,B);  PC+=6;   [A, B = f0-f15]
+        59XX cpcwr.8f  coprocessor( *(uint64_t*)(PC+2),A,B);  PC+=10;   [A, B = f0-f15]
+        5AXX cpcrd.2i  A= coprocessor( *(uint16_t*)(PC+2),A,B);  PC+=4;   [A, B = i0-i15]
+        5BXX cpcrd.4i  A= coprocessor( *(uint32_t*)(PC+2),A,B);  PC+=6;   [A, B = i0-i15]
+        5CXX cpcrd.8i  A= coprocessor( *(uint64_t*)(PC+2),A,B);  PC+=10;  [A, B = i0-i15]
+        5DXX cpcrd.2f  A= coprocessor( *(uint16_t*)(PC+2),A,B);  PC+=4;   [A, B = f0-f15]
+        5EXX cpcrd.4f  A= coprocessor( *(uint32_t*)(PC+2),A,B);  PC+=6;   [A, B = f0-f15]
+        5FXX cpcrd.8f  A= coprocessor( *(uint64_t*)(PC+2),A,B);  PC+=10;  [A, B = f0-f15]
 
     atomic_and_ld_ops:
-        60XX ld.u8  A = *(uint8_t*)(mem+B)
-        61XX ld.u16 A = *(uint16_t*)(mem+B)
-        62XX ld.u32 A = *(uint32_t*)(mem+B)
-        63XX ld.u64 A = *(uint64_t*)(mem+B)
+        60XX ld.u8  A = *(uint8_t*)(B)
+        61XX ld.u16 A = *(uint16_t*)(B)
+        62XX ld.u32 A = *(uint32_t*)(B)
+        63XX ld.u64 A = *(uint64_t*)(B)
 
-        64XX ld.i8  A = *(int8_t*)(mem+B)
-        65XX ld.i16 A = *(int16_t*)(mem+B)
-        66XX ld.i32 A = *(int32_t*)(mem+B)
-        67XX ld.i64 A = *(int64_t*)(mem+B)
+        64XX ld.i8  A = *(int8_t*)(B)
+        65XX ld.i16 A = *(int16_t*)(B)
+        66XX ld.i32 A = *(int32_t*)(B)
+        67XX ld.i64 A = *(int64_t*)(B)
         
-        68XX ld.f16 A = *(half*)(mem+B)
-        69XX ld.f32 A = *(float*)(mem+B)
-        6AXX ld.f64 A = *(double*)(mem+B)
+        68XX ld.f16 A = *(half*)(B)
+        69XX ld.f32 A = *(float*)(B)
+        6AXX ld.f64 A = *(double*)(B)
 
-        6BXX atomic_args       IND = A; CMP = B (IND and CMP are only valid for the next instruction)
-        6CXX atomic_cmpxchg    A = atomic_cmpxchg((uint32_t*)(mem+IND),CMP,B);
-        6DXX atomic_cmpxchg    A = atomic_cmpxchg((uint64_t*)(mem+IND),CMP,B);
-        6EXX atomic_xchg       A = atomic_xchg((uint32_t*)(mem+IND),B);
-        6FXX atomic_xchg       A = atomic_xchg((uint64_t*)(mem+IND),B);
+        **RESERVED** 6BXX atomic_args       IND = A; CMP = B (IND and CMP are only valid for the next instruction)
+        **RESERVED** 6CXX atomic_cmpxchg    A = atomic_cmpxchg((uint32_t*)(IND),CMP,B);
+        **RESERVED** 6DXX atomic_cmpxchg    A = atomic_cmpxchg((uint64_t*)(IND),CMP,B);
+        **RESERVED** 6EXX atomic_xchg       A = atomic_xchg((uint32_t*)(IND),B);
+        **RESERVED** 6FXX atomic_xchg       A = atomic_xchg((uint64_t*)(IND),B);
 
-        70XX atomic_add        A = atomic_add((uint32_t*)(mem+IND),B);
-        71XX atomic_add        A = atomic_add((uint64_t*)(mem+IND),B);
-        72XX atomic_sub        A = atomic_sub((uint32_t*)(mem+IND),B);
-        73XX atomic_sub        A = atomic_sub((uint64_t*)(mem+IND),B);
-        74XX atomic_or         A = atomic_or ((uint32_t*)(mem+IND),B);
-        75XX atomic_or         A = atomic_or ((uint64_t*)(mem+IND),B);
-        76XX atomic_and        A = atomic_and((uint32_t*)(mem+IND),B);
-        77XX atomic_and        A = atomic_and((uint64_t*)(mem+IND),B);
-        78XX atomic_xor        A = atomic_xor((uint32_t*)(mem+IND),B);
-        79XX atomic_xor        A = atomic_xor((uint64_t*)(mem+IND),B);
-        7AXX atomic_min        A = atomic_min((uint32_t*)(mem+IND),B);
-        7BXX atomic_min        A = atomic_min((uint64_t*)(mem+IND),B);
-        7CXX atomic_max        A = atomic_max((uint32_t*)(mem+IND),B);
-        7DXX atomic_max        A = atomic_max((uint64_t*)(mem+IND),B);
+        **RESERVED** 70XX atomic_add        A = atomic_add((uint32_t*)(IND),B);
+        **RESERVED** 71XX atomic_add        A = atomic_add((uint64_t*)(IND),B);
+        **RESERVED** 72XX atomic_sub        A = atomic_sub((uint32_t*)(IND),B);
+        **RESERVED** 73XX atomic_sub        A = atomic_sub((uint64_t*)(IND),B);
+        **RESERVED** 74XX atomic_or         A = atomic_or ((uint32_t*)(IND),B);
+        **RESERVED** 75XX atomic_or         A = atomic_or ((uint64_t*)(IND),B);
+        **RESERVED** 76XX atomic_and        A = atomic_and((uint32_t*)(IND),B);
+        **RESERVED** 77XX atomic_and        A = atomic_and((uint64_t*)(IND),B);
+        **RESERVED** 78XX atomic_xor        A = atomic_xor((uint32_t*)(IND),B);
+        **RESERVED** 79XX atomic_xor        A = atomic_xor((uint64_t*)(IND),B);
+        **RESERVED** 7AXX atomic_min        A = atomic_min((uint32_t*)(IND),B);
+        **RESERVED** 7BXX atomic_min        A = atomic_min((uint64_t*)(IND),B);
+        **RESERVED** 7CXX atomic_max        A = atomic_max((uint32_t*)(IND),B);
+        **RESERVED** 7DXX atomic_max        A = atomic_max((uint64_t*)(IND),B);
 
-        7EXX store.u8  *(uint8_t*) (mem+A) = B
-        7FXX store.u16 *(uint16_t*)(mem+A) = B
-        80XX store.u32 *(uint32_t*)(mem+A) = B
-        81XX store.u64 *(uint64_t*)(mem+A) = B
-        82XX store.f16 *(half*)(mem+A)   = B
-        83XX store.f32 *(float*)(mem+A)  = B
-        84XX store.f64 *(double*)(mem+A) = B
+        7EXX store.u8  *(uint8_t*) (A) = B
+        7FXX store.u16 *(uint16_t*)(A) = B
+        80XX store.u32 *(uint32_t*)(A) = B
+        81XX store.u64 *(uint64_t*)(A) = B
+        82XX store.f16 *(half*)(A)   = B
+        83XX store.f32 *(float*)(A)  = B
+        84XX store.f64 *(double*)(A) = B
 
         85xx XXXX      madd_imm.u16 A, B, #scale, #offset 
                         Performs: 
-                            A += B*scale(imm[15:8])   + offset(imm[7:0])
+                            imm = *(uint16_t*)(PC+2);
+                            A += B*scale(imm[15:8])   + offset(imm[7:0]);
+                            PC += 4;
         86xx XXXX      madd_imm.i16 A, B, #scale, #offset 
                         Performs: 
-                            A += B*scale(sign_extend(imm[15:8]))   + offset(sign_extend(imm[7:0]))
+                            imm = *(uint16_t*)(PC+2);
+                            A += B*scale(sign_extend(imm[15:8]))   + offset(sign_extend(imm[7:0]));
+                            PC += 4;
         87xx XXXX XXXX madd_imm.u32 A, B, #scale, #offset, {NONE, SP, PC, FP}  
                         Performs:
+                            imm = *(uint32_t*)(PC+2);
                             tmp = A;
                             if(imm[31:30]==1) tmp = SP;
                             if(imm[31:30]==2) tmp = PC;
                             if(imm[31:30]==3) tmp = FP;
                             A = tmp + B*scale(imm[29:20]) + offset(imm[19:0]);
+                            PC += 6; 
         88xx XXXX XXXX madd_imm.i32 A, B, #scale, #offset, {NONE, SP, PC, FP}  
                         Performs:
+                            imm = *(uint32_t*)(PC+2);
                             tmp = A;
                             if(imm[31:30]==1) tmp = SP;
                             if(imm[31:30]==2) tmp = PC;
                             if(imm[31:30]==3) tmp = FP;
                             A = tmp + B*scale(sign_extend(imm[29:20])) + offset(sign_extend(imm[19:0]));
+                            PC +=6; 
         89xx XXXX      add_imm.i16 A, B, #offset, {NONE, SP, PC, FP}  
                         Performs:
+                            imm = *(uint16_t*)(PC+2);
                             A = tmp + offset(sign_extend(imm[15:0]));
+                            PC +=4;
         8Axx XXXX XXXX add_imm.i32 A, B, #offset, {NONE, SP, PC, FP}  
                         Performs:
+                            imm = *(uint32_t*)(PC+2);
                             tmp = B
                             if(imm[31:30]==1) tmp = SP;
                             if(imm[31:30]==2) tmp = PC;
                             if(imm[31:30]==3) tmp = FP;
                             A = tmp + offset(sign_extend(imm[29:0]));
+                            PC += 6; 
     
     Compare Ops [0x9XXX-0xCXXX]
         Compare ops may come with an additional immediate called an extended compare command that can issue a branch, call, or return based
@@ -221,20 +232,20 @@ Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]]
         Bits [15:12] describe the size of the data for the extended compare command (treated as an immediate in the instruction stream).
             9XXX no extended branch/move command A = A cmp B. 
             AXXX XXXX 2 Byte extended branch/move command after compare instruction bytes
-                AXXX 0000 "return"                           if(A cmp B){PC = LR; SP-=8; FP=mem[SP]; SP-=8; LR=mem[SP]}
-                AXXX 0001 - AXXX 7FFF "call_rel_imm.i16"     if(A cmp B){mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP;  PC +=(int16_t)(imm[14:0]*2);}
-                AXXX 8000 "svc_return"                       if(A cmp B){svc_return;}
-                AXXX 8001 - AXXX FFFF "branch_rel_imm.i16"   if(A cmp B){PC +=(int16_t)(imm[14:0]*2);}
+                AXXX 0000 "return"                           if(A cmp B){PC = LR; SP=FP-16; LR=*(uint64_t*)(SP); FP=*(uint64_t*)(SP+8);}else{ PC+=4;}
+                AXXX 0001 - AXXX 7FFF "call_rel_imm.i16"     if(A cmp B){*(uint64_t*)(SP)=LR; *(uint64_t*)(SP+8)=FP; LR=PC+4; SP+=16; FP=SP;  PC +=(int16_t)(imm[14:0]*2);}else{ PC+=4;}
+                AXXX 8000 "svc_return"                       if(A cmp B){svc_return;}else{ PC+=4;}
+                AXXX 8001 - AXXX FFFF "branch_rel_imm.i16"   if(A cmp B){PC +=(int16_t)(imm[14:0]*2);}else{PC+=4;}
             BXXX XXXX XXXX 4 Byte extended branch/move command after compare instruction bytes
-                BXXX 0000 0000 "hvc_return"                            if(A cmp B){hvc_return;}
-                BXXX 0000 0001 - BXXX 7FFF FFFF "call_rel_imm.i32"     if(A cmp B){mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC +=(int32_t)(imm[30:0]*2);}
+                BXXX 0000 0000 "hvc_return"                            if(A cmp B){hvc_return;}else{PC+=6;}
+                BXXX 0000 0001 - BXXX 7FFF FFFF "call_rel_imm.i32"     if(A cmp B){*(uint64_t*)(SP)=LR; *(uint64_t*)(SP+8)=FP; LR=PC+6; SP+=16; FP=SP; PC +=(int32_t)(imm[30:0]*2);}else{PC+=6;}
                 BXXX 8000 0000 unused
-                BXXX 8000 0001 - BXXX FFFF FFFF "branch_rel_imm.i32"   if(A cmp B){PC +=(int32_t)(imm[30:0]*2);}
+                BXXX 8000 0001 - BXXX FFFF FFFF "branch_rel_imm.i32"   if(A cmp B){PC +=(int32_t)(imm[30:0]*2);}else{PC+=6;}
             CXXX XXXX XXXX XXXX XXXX 8 Byte extended branch/move command after compare instruction bytes
                 CXXX 0000 0000 0000 0000 unused
-                CXXX 0000 0000 0000 0001 - CXXX 7FFF FFFF FFFF FFFF "call_rel_imm.i64"     if(A cmp B){mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC +=(int64_t)(imm[62:0]*2);}
+                CXXX 0000 0000 0000 0001 - CXXX 7FFF FFFF FFFF FFFF "call_rel_imm.i64"     if(A cmp B){*(uint64_t*)(SP)=LR; *(uint64_t*)(SP+8)=FP; LR=PC+10; SP+=16; FP=SP; PC +=(int64_t)(imm[62:0]*2);}else{PC+=10;}
                 CXXX 8000 0000 0000 0000 unused
-                CXXX 8000 0000 0000 0001 - CXXX FFFF FFFF FFFF FFFF "branch_rel_imm.i64"   if(A cmp B){PC +=(int64_t)(imm[62:0]*2);}
+                CXXX 8000 0000 0000 0001 - CXXX FFFF FFFF FFFF FFFF "branch_rel_imm.i64"   if(A cmp B){PC +=(int64_t)(imm[62:0]*2);}else{PC+=10;}
         Bits [11:8] Encode the comparison operation being performed: 
             A and B are different registers (register vs. register)
                 X0XX eq           A==B
@@ -275,10 +286,10 @@ Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]]
         Bits [3:0] Encode the index of register A
 One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]] 
     push_ops: strop(SP,A) SP+=sizeof(ldop):
-        010x push.u8  *(uint8_t*) (mem+SP) = A; SP+=1 
-        011x push.u16 *(uint16_t*)(mem+SP) = A; SP+=2
-        012x push.u32 *(uint32_t*)(mem+SP) = A; SP+=4
-        013x push.u64 *(uint64_t*)(mem+SP) = A; SP+=8
+        010x push.u8  *(uint8_t*) (SP) = A; SP+=1 
+        011x push.u16 *(uint16_t*)(SP) = A; SP+=2
+        012x push.u32 *(uint32_t*)(SP) = A; SP+=4
+        013x push.u64 *(uint64_t*)(SP) = A; SP+=8
 
         014x unused
         015x unused
@@ -286,53 +297,53 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         017x unused
         
         018x unused
-        019x push.f16  *(half*)(mem+SP)   = A; SP+=2
-        01Ax push.f32  *(float*)(mem+SP)  = A; SP+=4
-        01Bx push.f64  *(double*)(mem+SP) = A; SP+=8
+        019x push.f16  *(half*)(SP)   = A; SP+=2
+        01Ax push.f32  *(float*)(SP)  = A; SP+=4
+        01Bx push.f64  *(double*)(SP) = A; SP+=8
 
-        01Cx push2.u64 (&A)[0]=*(int64_t*)(mem+SP); (&A)[1]=*(int64_t*)(mem+SP+8); SP+=16;
-        01Dx unused
+        01Cx push2.u64 (&A)[0]=*(uint64_t*)(SP); (&A)[1]=*(uint64_t*)(SP+8); SP+=16; Note: A must be an even register. 
+        01Dx push2.f64 (&A)[0]=*(double*)(SP); (&A)[1]=*(double*)(SP+8); SP+=16; Note: A must be an even register. 
         01Ex unused
         01Fx unused
 
     pop_ops: SP-=sizeof(ldop) A= ldop(SP):
-        020x pop.u8  SP-=1; A=*(uint8_t*) (mem+SP); 
-        021x pop.u16 SP-=2; A=*(uint16_t*)(mem+SP);
-        022x pop.u32 SP-=4; A=*(uint32_t*)(mem+SP);
-        023x pop.u64 SP-=8; A=*(uint64_t*)(mem+SP);
+        020x pop.u8  SP-=1; A=*(uint8_t*) (SP); 
+        021x pop.u16 SP-=2; A=*(uint16_t*)(SP);
+        022x pop.u32 SP-=4; A=*(uint32_t*)(SP);
+        023x pop.u64 SP-=8; A=*(uint64_t*)(SP);
 
-        024x pop.i8  SP-=1; A=*(int8_t*) (mem+SP); 
-        025x pop.i16 SP-=2; A=*(int16_t*)(mem+SP);
-        026x pop.i32 SP-=4; A=*(int32_t*)(mem+SP);
-        027x pop.i64 SP-=8; A=*(int64_t*)(mem+SP);
+        024x pop.i8  SP-=1; A=*(int8_t*) (SP); 
+        025x pop.i16 SP-=2; A=*(int16_t*)(SP);
+        026x pop.i32 SP-=4; A=*(int32_t*)(SP);
+        027x pop.i64 SP-=8; A=*(int64_t*)(SP);
 
         028x unused
-        029x pop.f16  SP-=2; A=*(half*)(mem+SP);
-        02Ax pop.f32  SP-=4; A=*(float*)(mem+SP);
-        02Bx pop.f64  SP-=8; A=*(double*)(mem+SP);
+        029x pop.f16  SP-=2; A=*(half*)(SP);
+        02Ax pop.f32  SP-=4; A=*(float*)(SP);
+        02Bx pop.f64  SP-=8; A=*(double*)(SP);
 
-        02Cx pop2.u64 (&A)[0]=*(int64_t*)(mem+SP); (&A)[1]=*(int64_t*)(mem+SP+8); SP+=16;
-        02Dx unused
+        02Cx pop2.u64 (&A)[0]=*(uint64_t*)(SP); (&A)[1]=*(uint64_t*)(SP+8); SP+=16; Note: A must be an even register. 
+        02Dx pop2.f64 (&A)[0]=*(double*)(SP);   (&A)[1]=*(double*)(SP+8); SP+=16; Note: A must be an even register. 
         02Ex unused
         02Fx unused
-    load_immediate: A = ldop(PC) PC+=sizeof(ldop); PC is pre-incrememented to advance instruction stream before operation
-        030x ldim.u8  A=*(uint8_t*) (mem+PC); PC+= 1
-        031x ldim.u16 A=*(uint16_t*)(mem+PC); PC+= 2
-        032x ldim.u32 A=*(uint32_t*)(mem+PC); PC+= 4
-        033x ldim.u64 A=*(uint64_t*)(mem+PC); PC+= 8
+    load_immediate: A = ldop(PC) PC+=sizeof(ldop)+2; 
+        030x unused
+        031x ldim.u16 A=*(uint16_t*)(PC+2); PC+= 4
+        032x ldim.u32 A=*(uint32_t*)(PC+2); PC+= 6
+        033x ldim.u64 A=*(uint64_t*)(PC+2); PC+= 10
 
-        034x ldim.i8  A=*(int8_t*) (mem+PC); PC+= 1
-        035x ldim.i16 A=*(int16_t*)(mem+PC); PC+= 2
-        036x ldim.i32 A=*(int32_t*)(mem+PC); PC+= 4
-        037x ldim.i64 A=*(int64_t*)(mem+PC); PC+= 8
+        034x unused 
+        035x ldim.i16 A=*(int16_t*)(PC+2); PC+= 4
+        036x ldim.i32 A=*(int32_t*)(PC+2); PC+= 6
+        037x ldim.i64 A=*(int64_t*)(PC+2); PC+= 10
 
         038x unused
-        039x ldim.f16  A=*(half*)(mem+PC);   PC+= 2
-        03Ax ldim.f32  A=*(float*)(mem+PC);  PC+= 4
-        03Bx ldim.f64  A=*(double*)(mem+PC); PC+= 8
+        039x ldim.f16  A=*(half*)(PC+2);   PC+= 4
+        03Ax ldim.f32  A=*(float*)(PC+2);  PC+= 6
+        03Bx ldim.f64  A=*(double*)(PC+2); PC+= 10
 
-        03Cx ldim2.u64 (&A)[0]=*(int64_t*)(mem+PC); (&A)[1]=*(int64_t*)(mem+PC+8); PC+=16;
-        03Dx unused
+        03Cx ldim2.u64 (&A)[0]=*(uint64_t*)(PC+2); (&A)[1]=*(uint64_t*)(PC+10); PC+=20; Note: A must be an even register. 
+        03Dx ldim2.f64 (&A)[0]=*(double*)(PC+2); (&A)[1]=*(double*)(PC+10); PC+=20; Note: A must be an even register. 
         03Ex unused
         03Fx unused
     special_reg_op [A=i0-i15]
@@ -355,13 +366,13 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
         04Fx add FP, A       FP += A
    
     call_ops:
-        050x call_indirect            mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC = A;
-        051x call_relative_indirect   mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC += A;
+        050x call_indirect            *(uint64_t*)(SP)=LR; *(uint64_t*)(SP+8)=FP; SP+=16; LR=PC+2; FP=SP; PC = A;
+        051x call_relative_indirect   *(uint64_t*)(SP)=LR; *(uint64_t*)(SP+8)=FP; SP+=16; LR=PC+2; FP=SP; PC += A;
         0520-05FF unused
     **RESERVED** add_sub_pow2_constant: [A=i0-i15]
         060x inc_2 : add A+=2
         061x inc_4 : add A+=4
-        062x inc_8: add A+=8
+        062x inc_8 :  add A+=8
         063x inc_16 : add A+=16
         064x inc_32 : add A+=32
         065x inc_64 : add A+=64
@@ -431,21 +442,21 @@ One Operand Class:   [ 3:0 A  ] [ 15:4 op2 [ values 0x010-0x0FF]]
 No operand Class:    [ 15:0 op2 [ values 0x0000-0x00FF]] 
     flow_control:
         0000 illegal
-        0001 call_imm.u16          mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC  =*(uint16_t*)(mem+PC);
-        0002 call_imm.u32          mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC  =*(uint32_t*)(mem+PC);
-        0003 call_imm.u64          mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC  =*(uint64_t*)(mem+PC);
-        0004 call_rel_imm.i16      mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC +=*(int16_t*)(mem+PC);
-        0005 call_rel_imm.i32      mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC +=*(int32_t*)(mem+PC);
-        0006 call_rel_imm.i64      mem[SP]=LR; SP+=8; LR=PC; mem[SP]=FP; SP+=8; FP=SP; PC +=*(int64_t*)(mem+PC);
+        0001 call_imm.u16           *(uint64_t*)(SP)=LR; *(uint64_t*)(SP+8)=FP; LR=PC+4;  SP+=16; FP=SP;  PC = *(uint16_t*)(PC)*2;
+        0002 call_imm.u32           *(uint64_t*)(SP)=LR; *(uint64_t*)(SP+8)=FP; LR=PC+6;  SP+=16; FP=SP;  PC = *(uint32_t*)(PC)*2;
+        0003 call_imm.u64           *(uint64_t*)(SP)=LR; *(uint64_t*)(SP+8)=FP; LR=PC+10; SP+=16; FP=SP;  PC = *(uint64_t*)(PC)*2;
+        0004 call_rel_imm.i16       *(uint64_t*)(SP)=LR; *(uint64_t*)(SP+8)=FP; LR=PC+4;  SP+=16; FP=SP;  PC +=*(int16_t*)(PC)*2;
+        0005 call_rel_imm.i32       *(uint64_t*)(SP)=LR; *(uint64_t*)(SP+8)=FP; LR=PC+6;  SP+=16; FP=SP;  PC +=*(int32_t*)(PC)*2;
+        0006 call_rel_imm.i64       *(uint64_t*)(SP)=LR; *(uint64_t*)(SP+8)=FP; LR=PC+10; SP+=16; FP=SP;  PC +=*(int64_t*)(PC)*2;
         0007 svc_return            svc_return;
         0008 hvc_return            hvc_return;
-        0009 branch_imm.u16        PC =*(uint16_t*)(mem+PC);
-        000A branch_imm.u32        PC =*(uint32_t*)(mem+PC);
-        000B branch_imm.u64        PC =*(uint64_t*)(mem+PC);
-        000C branch_rel_imm.i16    PC +=*(int16_t*)(mem+PC);
-        000D branch_rel_imm.i32    PC +=*(int32_t*)(mem+PC);
-        000E branch_rel_imm.i64    PC +=*(int64_t*)(mem+PC);
-        000F return                PC = LR; SP-=8; FP=mem[SP]; SP-=8; LR=mem[SP] 
+        0009 branch_imm.u16        PC = *(uint16_t*)(PC);
+        000A branch_imm.u32        PC = *(uint32_t*)(PC);
+        000B branch_imm.u64        PC = *(uint64_t*)(PC);
+        000C branch_rel_imm.i16    PC +=*(int16_t*)(PC);
+        000D branch_rel_imm.i32    PC +=*(int32_t*)(PC);
+        000E branch_rel_imm.i64    PC +=*(int64_t*)(PC);
+        000F return                PC = LR; SP=FP-16; LR=*(uint64_t*)(SP); FP=*(uint64_t*)(SP+8);
 
         0010-001F unused
 
