@@ -86,9 +86,9 @@ Two Operand Class:   [ 3:0 A  ] [ 7:4 B ] [ 15:8 op [values 0x10-0xAF]]
         33XX and        A &= B
         34XX not        A = ~B
         35XX bitreverse A = bitreverse(B)
-        36xx unused
-        37xx unused
-        38xx unused
+        36xx bswap      A[7:0] = B[56:63]; A[8:15] = B[48:55]; A[16:23] = B[40:47]; A[24:31] = B[32:39]; A[32:39] = B[24:31]; A[40:47] = B[16:23]; A[48:55] = B[8:15]; A[56:63] = B[0:7]
+        37xx mul_hi.i64 A = ((int64_t)A * (int64_t)B)[64:127]
+        38xx mul_hi.u64 A = ((uint64_t)A * (uint64_t)B)[64:127]
         39xx unused
 
     multi_pipeline_ops:
